@@ -1,8 +1,7 @@
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local TweenService = game:GetService("TweenService")
-local VirtualInput = game:GetService("VirtualInputManager")
+local RunService = game:GetService("RunService")
 
 -- Remove lobby touch triggers
 for _, obj in pairs(Workspace.Lobby:GetDescendants()) do
@@ -11,70 +10,60 @@ for _, obj in pairs(Workspace.Lobby:GetDescendants()) do
     end
 end
 
--- Function to equip all weapons
-local function equipAllWeapons()
-    if not LocalPlayer.Character then return end
-    
-    local weapons = {"Sword", "Bomb", "Rocket Launcher"} -- Add all tool names here
-    for _, weaponName in pairs(weapons) do
-        local tool = LocalPlayer.Backpack:FindFirstChild(weaponName) or LocalPlayer.Character:FindFirstChild(weaponName)
-        if tool and not LocalPlayer.Character:FindFirstChild(weaponName) then
-            tool.Parent = LocalPlayer.Character
-        end
-    end
-end
+-- Store original CFrame to keep player in place
+local originalCFrame = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.CFrame
 
--- Auto-kill enemies
+-- Auto-kill enemies (stealth version)
 spawn(function()
     while getgenv().TwinkleCancelMadeThisShit do
         task.wait()
-        equipAllWeapons() -- Equip weapons before attacking
-        
         for _, enemy in pairs(Players:GetChildren()) do
-            if enemy.Team ~= LocalPlayer.Team and enemy.Team ~= "Spectators" then
-                if enemy ~= Players.LocalPlayer and enemy.Character and enemy.Character:FindFirstChild("HumanoidRootPart") 
-                   and not enemy.Character:FindFirstChild("ForceField") and enemy.Character.Humanoid.Health > 0 then
-                   
-                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") 
-                       and LocalPlayer.Character.Humanoid.Health > 0 and not LocalPlayer.Character:FindFirstChild("ForceField") then
-                       
-                        -- Attack loop
-                        for _ = 1, 5 do
-                            pcall(function()
-                                -- Tween to enemy
-                                local tween = TweenService:Create(
-                                    LocalPlayer.Character.HumanoidRootPart,
-                                    TweenInfo.new(0.1),
-                                    {CFrame = enemy.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -2)}
-                                )
-                                tween:Play()
-                                tween.Completed:Wait()
-                                
-                                -- Swing sword
-                                VirtualInput:SendMouseButtonEvent(960, 482, 0, true, game, 1)
-                                task.wait(0.1)
-                                VirtualInput:SendMouseButtonEvent(960, 482, 0, false, game, 1)
-                            end)
+            if enemy ~= LocalPlayer and enemy.Team ~= LocalPlayer.Team and enemy.Team ~= "Spectators" then
+                if enemy.Character and enemy.Character:FindFirstChild("Humanoid") and enemy.Character.Humanoid.Health > 0 then
+                    -- Method 1: Remote event triggering (if game has remotes)
+                    pcall(function()
+                        local remotes = game:GetService("ReplicatedStorage"):FindFirstChildWhichIsA("RemoteEvent")
+                        if remotes then
+                            remotes:FireServer("DamagePlayer", enemy, 9999)
                         end
-                    end
+                    end)
+                    
+                    -- Method 2: Direct humanoid damage (less stealthy but works in some games)
+                    pcall(function()
+                        enemy.Character.Humanoid:TakeDamage(9999)
+                    end)
+                    
+                    -- Method 3: Character manipulation (most stealthy)
+                    pcall(function()
+                        if enemy.Character:FindFirstChild("HumanoidRootPart") then
+                            enemy.Character.HumanoidRootPart.CFrame = CFrame.new(0, -500, 0) -- Teleport underground
+                            task.wait(0.1)
+                            enemy.Character.Humanoid.Health = 0
+                        end
+                    end)
                 end
             end
+        end
+        
+        -- Keep player in original position
+        if originalCFrame and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = originalCFrame
         end
     end
 end)
 
--- Auto-swing all weapons
-spawn(function()
-    while getgenv().TwinkleCancelMadeThisShit do
-        equipAllWeapons()
-        -- Swing sword
-        VirtualInput:SendMouseButtonEvent(960, 482, 0, true, game, 1)
-        task.wait(0.1)
-        VirtualInput:SendMouseButtonEvent(960, 482, 0, false, game, 1)
-        -- Throw bomb (if you want auto-throw, add keypress for 'R' or whatever the bomb key is)
-        -- Fire rocket (would need keypress for rocket launcher)
-        task.wait(0.5)
+-- Keep player in place (backup method)
+local connection
+connection = RunService.Heartbeat:Connect(function()
+    if not getgenv().TwinkleCancelMadeThisShit then
+        connection:Disconnect()
+        return
+    end
+    
+    if originalCFrame and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        LocalPlayer.Character.HumanoidRootPart.CFrame = originalCFrame
+        -- Freeze character completely
+        LocalPlayer.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+        LocalPlayer.Character.HumanoidRootPart.RotVelocity = Vector3.new(0, 0, 0)
     end
 end)
-
-print("AutoKill+AllWeapons Loaded! Enable with: getgenv().TwinkleCancelMadeThisShit = true")
