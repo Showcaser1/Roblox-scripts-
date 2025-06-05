@@ -11,50 +11,49 @@ for _, obj in pairs(Workspace.Lobby:GetDescendants()) do
     end
 end
 
+-- Function to equip all weapons
+local function equipAllWeapons()
+    if not LocalPlayer.Character then return end
+    
+    local weapons = {"Sword", "Bomb", "Rocket Launcher"} -- Add all tool names here
+    for _, weaponName in pairs(weapons) do
+        local tool = LocalPlayer.Backpack:FindFirstChild(weaponName) or LocalPlayer.Character:FindFirstChild(weaponName)
+        if tool and not LocalPlayer.Character:FindFirstChild(weaponName) then
+            tool.Parent = LocalPlayer.Character
+        end
+    end
+end
+
 -- Auto-kill enemies
 spawn(function()
     while getgenv().TwinkleCancelMadeThisShit do
         task.wait()
+        equipAllWeapons() -- Equip weapons before attacking
+        
         for _, enemy in pairs(Players:GetChildren()) do
             if enemy.Team ~= LocalPlayer.Team and enemy.Team ~= "Spectators" then
-                if enemy ~= Players.LocalPlayer and enemy.Character ~= nil and enemy.Character:FindFirstChild("HumanoidRootPart") and not enemy.Character:FindFirstChild("ForceField") and enemy.Character:FindFirstChild("Humanoid") and enemy.Character.Humanoid.Health ~= 0 then
-                    if LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character:FindFirstChild("Humanoid") and LocalPlayer.Character.Humanoid.Health ~= 0 and not LocalPlayer.Character:FindFirstChild("ForceField") then
-                        if getgenv().TwinkleCancelMadeThisShit == false then return end
-                        
-                        -- Equip sword if not already equipped
-                        if not LocalPlayer.Character:FindFirstChild("Sword") and LocalPlayer.Backpack:FindFirstChild("Sword") then
-                            LocalPlayer.Backpack:FindFirstChild("Sword").Parent = LocalPlayer.Character
-                        end
-                        
-                        if getgenv().TwinkleCancelMadeThisShit == false then return end
-                        
-                        -- Remove any existing "Kill" object
-                        if Workspace:FindFirstChild("Kill") then
-                            Workspace:FindFirstChild("Kill"):Destroy()
-                        end
-                        
+                if enemy ~= Players.LocalPlayer and enemy.Character and enemy.Character:FindFirstChild("HumanoidRootPart") 
+                   and not enemy.Character:FindFirstChild("ForceField") and enemy.Character.Humanoid.Health > 0 then
+                   
+                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") 
+                       and LocalPlayer.Character.Humanoid.Health > 0 and not LocalPlayer.Character:FindFirstChild("ForceField") then
+                       
                         -- Attack loop
                         for _ = 1, 5 do
                             pcall(function()
-                                if enemy.Character.Humanoid.Health <= 0 or enemy.Character:FindFirstChild("ForceField") or LocalPlayer.Character:FindFirstChild("ForceField") then return end
-                                
-                                -- Tween to enemy's leg
-                                local tween1 = TweenService:Create(
+                                -- Tween to enemy
+                                local tween = TweenService:Create(
                                     LocalPlayer.Character.HumanoidRootPart,
-                                    TweenInfo.new(0.1, Enum.EasingStyle.Linear),
-                                    {CFrame = enemy.Character:FindFirstChild("RightUpperLeg").CFrame * CFrame.new(0, 0, 0.1) or enemy.Character:FindFirstChild("Right Leg").CFrame * CFrame.new(0, 0, 3)}
+                                    TweenInfo.new(0.1),
+                                    {CFrame = enemy.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -2)}
                                 )
-                                tween1:Play()
-                                tween1.Completed:Wait()
+                                tween:Play()
+                                tween.Completed:Wait()
                                 
-                                -- Tween to enemy's head
-                                local tween2 = TweenService:Create(
-                                    LocalPlayer.Character.HumanoidRootPart,
-                                    TweenInfo.new(0.1, Enum.EasingStyle.Linear),
-                                    {CFrame = enemy.Character:FindFirstChild("Head").CFrame * CFrame.new(0.2, 0, 0)}
-                                )
-                                tween2:Play()
-                                tween2.Completed:Wait()
+                                -- Swing sword
+                                VirtualInput:SendMouseButtonEvent(960, 482, 0, true, game, 1)
+                                task.wait(0.1)
+                                VirtualInput:SendMouseButtonEvent(960, 482, 0, false, game, 1)
                             end)
                         end
                     end
@@ -64,18 +63,18 @@ spawn(function()
     end
 end)
 
--- Auto-swing sword
+-- Auto-swing all weapons
 spawn(function()
     while getgenv().TwinkleCancelMadeThisShit do
-        task.wait(0.001)
-        if LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character:FindFirstChild("Humanoid") and LocalPlayer.Character.Humanoid.Health ~= 0 then
-            -- Rotate character slightly
-            local char = LocalPlayer.Character
-            char.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame * CFrame.Angles(0, math.rad(50), math.rad(50))
-            
-            -- Simulate mouse click (attack)
-            VirtualInput:SendMouseButtonEvent(960, 482, 0, true, game, 1)
-            VirtualInput:SendMouseButtonEvent(960, 482, 0, false, game, 1)
-        end
+        equipAllWeapons()
+        -- Swing sword
+        VirtualInput:SendMouseButtonEvent(960, 482, 0, true, game, 1)
+        task.wait(0.1)
+        VirtualInput:SendMouseButtonEvent(960, 482, 0, false, game, 1)
+        -- Throw bomb (if you want auto-throw, add keypress for 'R' or whatever the bomb key is)
+        -- Fire rocket (would need keypress for rocket launcher)
+        task.wait(0.5)
     end
 end)
+
+print("AutoKill+AllWeapons Loaded! Enable with: getgenv().TwinkleCancelMadeThisShit = true")
