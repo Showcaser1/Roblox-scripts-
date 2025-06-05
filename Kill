@@ -2,6 +2,7 @@ local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 -- Remove lobby touch triggers
 for _, obj in pairs(Workspace.Lobby:GetDescendants()) do
@@ -10,60 +11,85 @@ for _, obj in pairs(Workspace.Lobby:GetDescendants()) do
     end
 end
 
--- Store original CFrame to keep player in place
-local originalCFrame = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.CFrame
+-- Store the last valid position to return to
+local lastValidPosition = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.CFrame
 
--- Auto-kill enemies (stealth version)
+-- Auto-kill enemies (stealth teleport version)
 spawn(function()
     while getgenv().TwinkleCancelMadeThisShit do
-        task.wait()
+        task.wait(0.5) -- Reduce CPU usage
+        
+        -- Save current position before teleporting
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            lastValidPosition = LocalPlayer.Character.HumanoidRootPart.CFrame
+        end
+
         for _, enemy in pairs(Players:GetChildren()) do
             if enemy ~= LocalPlayer and enemy.Team ~= LocalPlayer.Team and enemy.Team ~= "Spectators" then
                 if enemy.Character and enemy.Character:FindFirstChild("Humanoid") and enemy.Character.Humanoid.Health > 0 then
-                    -- Method 1: Remote event triggering (if game has remotes)
+                    -- Invisible teleport sequence
                     pcall(function()
-                        local remotes = game:GetService("ReplicatedStorage"):FindFirstChildWhichIsA("RemoteEvent")
-                        if remotes then
-                            remotes:FireServer("DamagePlayer", enemy, 9999)
-                        end
-                    end)
-                    
-                    -- Method 2: Direct humanoid damage (less stealthy but works in some games)
-                    pcall(function()
-                        enemy.Character.Humanoid:TakeDamage(9999)
-                    end)
-                    
-                    -- Method 3: Character manipulation (most stealthy)
-                    pcall(function()
-                        if enemy.Character:FindFirstChild("HumanoidRootPart") then
-                            enemy.Character.HumanoidRootPart.CFrame = CFrame.new(0, -500, 0) -- Teleport underground
-                            task.wait(0.1)
+                        -- Make local player invisible temporarily
+                        local humanoidRootPart = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        local enemyRoot = enemy.Character and enemy.Character:FindFirstChild("HumanoidRootPart")
+                        
+                        if humanoidRootPart and enemyRoot then
+                            -- 1. Freeze player in place visually
+                            local fakePosition = humanoidRootPart.CFrame
+                            local conn
+                            conn = RunService.Heartbeat:Connect(function()
+                                if not getgenv().TwinkleCancelMadeThisShit then
+                                    conn:Disconnect()
+                                    return
+                                end
+                                humanoidRootPart.CFrame = fakePosition
+                            end)
+                            
+                            -- 2. Actually teleport to enemy (invisible to player)
+                            humanoidRootPart.CFrame = enemyRoot.CFrame * CFrame.new(0, 0, -3)
+                            
+                            -- 3. Perform kill (using various methods)
+                            -- Method 1: Remote event
+                            local remotes = game:GetService("ReplicatedStorage"):FindFirstChildWhichIsA("RemoteEvent")
+                            if remotes then
+                                remotes:FireServer("DamagePlayer", enemy, 9999)
+                            end
+                            
+                            -- Method 2: Direct damage
+                            enemy.Character.Humanoid:TakeDamage(9999)
+                            
+                            -- Method 3: Fake death
                             enemy.Character.Humanoid.Health = 0
+                            
+                            -- 4. Return to original position
+                            humanoidRootPart.CFrame = fakePosition
+                            
+                            -- 5. Clean up
+                            task.wait(0.1)
+                            conn:Disconnect()
                         end
                     end)
                 end
             end
         end
         
-        -- Keep player in original position
-        if originalCFrame and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            LocalPlayer.Character.HumanoidRootPart.CFrame = originalCFrame
+        -- Return to last valid position if we have one
+        if lastValidPosition and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = lastValidPosition
         end
     end
 end)
 
--- Keep player in place (backup method)
-local connection
-connection = RunService.Heartbeat:Connect(function()
-    if not getgenv().TwinkleCancelMadeThisShit then
-        connection:Disconnect()
-        return
+-- Allow normal movement while script runs
+local function freezeVelocity()
+    while getgenv().TwinkleCancelMadeThisShit do
+        task.wait()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            -- This prevents visual glitches from the teleportation
+            LocalPlayer.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+            LocalPlayer.Character.HumanoidRootPart.RotVelocity = Vector3.new(0, 0, 0)
+        end
     end
-    
-    if originalCFrame and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        LocalPlayer.Character.HumanoidRootPart.CFrame = originalCFrame
-        -- Freeze character completely
-        LocalPlayer.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
-        LocalPlayer.Character.HumanoidRootPart.RotVelocity = Vector3.new(0, 0, 0)
-    end
-end)
+end
+
+spawn(freezeVelocity)
