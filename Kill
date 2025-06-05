@@ -1,0 +1,81 @@
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
+local VirtualInput = game:GetService("VirtualInputManager")
+
+-- Remove lobby touch triggers
+for _, obj in pairs(Workspace.Lobby:GetDescendants()) do
+    if obj:IsA("TouchTransmitter") then
+        obj:Destroy()
+    end
+end
+
+-- Auto-kill enemies
+spawn(function()
+    while getgenv().TwinkleCancelMadeThisShit do
+        task.wait()
+        for _, enemy in pairs(Players:GetChildren()) do
+            if enemy.Team ~= LocalPlayer.Team and enemy.Team ~= "Spectators" then
+                if enemy ~= Players.LocalPlayer and enemy.Character ~= nil and enemy.Character:FindFirstChild("HumanoidRootPart") and not enemy.Character:FindFirstChild("ForceField") and enemy.Character:FindFirstChild("Humanoid") and enemy.Character.Humanoid.Health ~= 0 then
+                    if LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character:FindFirstChild("Humanoid") and LocalPlayer.Character.Humanoid.Health ~= 0 and not LocalPlayer.Character:FindFirstChild("ForceField") then
+                        if getgenv().TwinkleCancelMadeThisShit == false then return end
+                        
+                        -- Equip sword if not already equipped
+                        if not LocalPlayer.Character:FindFirstChild("Sword") and LocalPlayer.Backpack:FindFirstChild("Sword") then
+                            LocalPlayer.Backpack:FindFirstChild("Sword").Parent = LocalPlayer.Character
+                        end
+                        
+                        if getgenv().TwinkleCancelMadeThisShit == false then return end
+                        
+                        -- Remove any existing "Kill" object
+                        if Workspace:FindFirstChild("Kill") then
+                            Workspace:FindFirstChild("Kill"):Destroy()
+                        end
+                        
+                        -- Attack loop
+                        for _ = 1, 5 do
+                            pcall(function()
+                                if enemy.Character.Humanoid.Health <= 0 or enemy.Character:FindFirstChild("ForceField") or LocalPlayer.Character:FindFirstChild("ForceField") then return end
+                                
+                                -- Tween to enemy's leg
+                                local tween1 = TweenService:Create(
+                                    LocalPlayer.Character.HumanoidRootPart,
+                                    TweenInfo.new(0.1, Enum.EasingStyle.Linear),
+                                    {CFrame = enemy.Character:FindFirstChild("RightUpperLeg").CFrame * CFrame.new(0, 0, 0.1) or enemy.Character:FindFirstChild("Right Leg").CFrame * CFrame.new(0, 0, 3)}
+                                )
+                                tween1:Play()
+                                tween1.Completed:Wait()
+                                
+                                -- Tween to enemy's head
+                                local tween2 = TweenService:Create(
+                                    LocalPlayer.Character.HumanoidRootPart,
+                                    TweenInfo.new(0.1, Enum.EasingStyle.Linear),
+                                    {CFrame = enemy.Character:FindFirstChild("Head").CFrame * CFrame.new(0.2, 0, 0)}
+                                )
+                                tween2:Play()
+                                tween2.Completed:Wait()
+                            end)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- Auto-swing sword
+spawn(function()
+    while getgenv().TwinkleCancelMadeThisShit do
+        task.wait(0.001)
+        if LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character:FindFirstChild("Humanoid") and LocalPlayer.Character.Humanoid.Health ~= 0 then
+            -- Rotate character slightly
+            local char = LocalPlayer.Character
+            char.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame * CFrame.Angles(0, math.rad(50), math.rad(50))
+            
+            -- Simulate mouse click (attack)
+            VirtualInput:SendMouseButtonEvent(960, 482, 0, true, game, 1)
+            VirtualInput:SendMouseButtonEvent(960, 482, 0, false, game, 1)
+        end
+    end
+end)
